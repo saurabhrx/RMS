@@ -13,9 +13,13 @@ import (
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
-	var body models.UserRequest
+	var body models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
+		return
+	}
+	if body.Email == "" || body.Password == "" || body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
 		return
 	}
 	exists, existsErr := dbHelper.IsUserExists(body.Email)
@@ -33,6 +37,48 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Password = string(hashedPassword)
+	userID, createErr := dbHelper.Register(&body)
+	if createErr != nil || userID == "" {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
+		return
+	}
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "user created successfully",
+		"user_id": userID,
+	})
+	if err != nil {
+		return
+	}
+}
+
+func CreateUser(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	var body models.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
+		return
+	}
+	if body.Email == "" || body.Password == "" || body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
+		return
+	}
+
+	exists, existsErr := dbHelper.IsUserExists(body.Email)
+	if existsErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while creating User")
+		return
+	}
+	if exists {
+		utils.ResponseError(w, http.StatusConflict, "user already exists")
+		return
+	}
+	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	if hashErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to hash password")
+		return
+	}
+	body.Password = string(hashedPassword)
+	body.CreatedBy = userID
 	userID, createErr := dbHelper.CreateUser(&body)
 	if createErr != nil || userID == "" {
 		fmt.Println(createErr)
@@ -125,6 +171,33 @@ func CalculateDistance(w http.ResponseWriter, r *http.Request) {
 	EncodeErr := json.NewEncoder(w).Encode(map[string]float64{
 		"distance in km": distance,
 	})
+	if EncodeErr != nil {
+		return
+	}
+}
+
+func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	subAdmin, err := dbHelper.GetAllSubadmin(userID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to get subadmin")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(subAdmin)
+	if EncodeErr != nil {
+		return
+	}
+
+}
+
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	users, err := dbHelper.GetUsers(userID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to get users")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(users)
 	if EncodeErr != nil {
 		return
 	}

@@ -32,9 +32,17 @@ func IsDishExists(name string, restaurantId string) (bool, error) {
 }
 
 func GetDishesByRestaurant(restaurantId string) ([]models.MenuResponse, error) {
-	query := `SELECT menu.name, menu.price  FROM menu join restaurant on restaurant.id = menu.restaurant_id WHERE restaurant_id=$1`
+	query := `SELECT menu.name, menu.price FROM menu join restaurant on restaurant.id = menu.restaurant_id 
+              WHERE restaurant.id=$1 AND restaurant.archived_at IS NULL `
 	var dishes []models.MenuResponse
 	err := database.RMS.Select(&dishes, query, restaurantId)
+	return dishes, err
+
+}
+func GetDishesByUserID(userID string) ([]models.MenuResponse, error) {
+	query := `SELECT menu.name, menu.price  FROM menu WHERE created_by=$1 AND archived_at IS NULL`
+	var dishes []models.MenuResponse
+	err := database.RMS.Select(&dishes, query, userID)
 	return dishes, err
 
 }

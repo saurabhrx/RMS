@@ -52,3 +52,21 @@ func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func GetRestaurantByUerID(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	restaurants, err := dbHelper.GetRestaurantByUerID(userID)
+	if err != nil && restaurants != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
+		return
+	}
+	if restaurants == nil {
+		utils.ResponseError(w, http.StatusOK, "no record available")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(restaurants)
+	if EncodeErr != nil {
+		return
+	}
+
+}

@@ -1,6 +1,18 @@
 package models
 
-type UserRequest struct {
+const (
+	RoleAdmin    = "admin"
+	RoleSubadmin = "sub-admin"
+	RoleUser     = "user"
+)
+
+type RegisterRequest struct {
+	Name     string     `json:"name" db:"name"`
+	Email    string     `json:"email" db:"email"`
+	Password string     `json:"password" db:"password"`
+	Address  []Location `json:"address" db:"address"`
+}
+type CreateUserRequest struct {
 	Name      string     `json:"name" db:"name"`
 	Email     string     `json:"email" db:"email"`
 	Password  string     `json:"password" db:"password"`
@@ -29,4 +41,14 @@ type Distance struct {
 type DistanceRequest struct {
 	UserID       string `json:"user_id" db:"user_id"`
 	RestaurantID string `json:"restaurant_id" db:"restaurant_id"`
+}
+
+type SubadminResponse struct {
+	ID   string `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+}
+type UseResponse struct {
+	ID   string `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	Role string `json:"role" db:"role_type"`
 }

@@ -30,7 +30,7 @@ func GenerateAccessToken(userID string, roleType []string) (string, error) {
 		UserID: userID,
 		Role:   roleType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -106,7 +106,6 @@ func AuthRole(allowedRoles ...string) func(http.Handler) http.Handler {
 	for _, role := range allowedRoles {
 		roleSet[strings.ToLower(role)] = struct{}{}
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userRoles := RoleContext(r)

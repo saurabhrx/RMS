@@ -23,7 +23,43 @@ func IsUserExists(email string) (bool, error) {
 	return true, nil
 }
 
-func CreateUser(body *models.UserRequest) (string, error) {
+func Register(body *models.RegisterRequest) (string, error) {
+	var (
+		userID string
+		err    error
+	)
+	query := `INSERT INTO users(name, email, password) 
+		       VALUES ($1, $2, $3) RETURNING id`
+	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password).Scan(&userID)
+	if err != nil {
+		return "", err
+	}
+
+	var roleID string
+	selectQuery := `SELECT id FROM role WHERE role_type = 'user'`
+	err = database.RMS.Get(&roleID, selectQuery)
+	if err != nil {
+		return "", err
+	}
+	insertQuery := `INSERT INTO user_role(user_id, role_id) VALUES ($1, $2)`
+	_, err = database.RMS.Exec(insertQuery, userID, roleID)
+	if err != nil {
+		return "", err
+	}
+
+	for _, address := range body.Address {
+		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
+		_, err = database.RMS.Exec(addressQuery, userID, address.Latitude, address.Longitude)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return userID, nil
+}
+
+// for admin/subadmin
+func CreateUser(body *models.CreateUserRequest) (string, error) {
 	var (
 		userID string
 		err    error
@@ -32,21 +68,13 @@ func CreateUser(body *models.UserRequest) (string, error) {
 	if len(body.Role) == 0 {
 		body.Role = []string{"user"}
 	}
-	if body.CreatedBy != "" {
-		query := `INSERT INTO users(name, email, password, created_by) 
+	query := `INSERT INTO users(name, email, password, created_by) 
 		       VALUES ($1, $2, $3, $4) RETURNING id`
-		err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		query := `INSERT INTO users(name, email, password) 
-		       VALUES ($1, $2, $3) RETURNING id`
-		err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password).Scan(&userID)
-		if err != nil {
-			return "", err
-		}
+	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
+	if err != nil {
+		return "", err
 	}
+
 	for _, roleType := range body.Role {
 		var roleID string
 		selectQuery := `SELECT id FROM role WHERE role_type = $1`
@@ -148,16 +176,41 @@ func Logout(userID string, refreshToken string) error {
 func CalculateDistance(userID string, restaurantID string) (models.Distance, error) {
 	fmt.Println("Calculating distance")
 	var body models.Distance
-	query := `SELECT user_address.latitude , user_address.longitude from user_address join users on user_address.user_id = users.id WHERE user_id=$1`
-	err := database.RMS.QueryRowx(query, userID).Scan(&body.UserLat, &body.UserLong)
+	SQL := `SELECT user_address.latitude , user_address.longitude FROM user_address 
+            JOIN users ON user_address.user_id = users.id WHERE user_id=$1`
+	err := database.RMS.QueryRowx(SQL, userID).Scan(&body.UserLat, &body.UserLong)
 	if err != nil {
 		return models.Distance{}, err
 	}
-	query = `SELECT latitude , longitude from restaurant WHERE id=$1`
-	err = database.RMS.QueryRowx(query, restaurantID).Scan(&body.RestaurantLat, &body.RestaurantLong)
+	SQL = `SELECT latitude , longitude from restaurant WHERE id=$1`
+	err = database.RMS.QueryRowx(SQL, restaurantID).Scan(&body.RestaurantLat, &body.RestaurantLong)
 	if err != nil {
 		return models.Distance{}, err
 	}
 	return body, nil
+
+}
+
+func GetAllSubadmin(userID string) ([]models.SubadminResponse, error) {
+	var subAdmin []models.SubadminResponse
+	var roleID string
+	SQL := `SELECT id FROM role WHERE role_type='sub-admin'`
+	err := database.RMS.Get(&roleID, SQL)
+	if err != nil {
+		return subAdmin, err
+	}
+	SQL = `SELECT DISTINCT users.id , users.name FROM users JOIN user_role ON users.id = user_role.user_id 
+             WHERE user_role.role_id=$1 AND users.created_by=$2 AND users.archived_at IS NULL`
+	err = database.RMS.Select(&subAdmin, SQL, roleID, userID)
+	return subAdmin, err
+}
+
+func GetUsers(userID string) ([]models.UseResponse, error) {
+	var users []models.UseResponse
+	SQL := `SELECT DISTINCT users.id , users.name , role.role_type FROM users 
+            JOIN user_role ON users.id = user_role.user_id
+            JOIN role ON role.id = user_role.role_id where created_by=$1 AND users.archived_at IS NULL `
+	err := database.RMS.Select(&users, SQL, userID)
+	return users, err
 
 }
