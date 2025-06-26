@@ -7,6 +7,7 @@ import (
 	"RMS/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 )
@@ -32,7 +33,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Password = string(hashedPassword)
-	fmt.Println(body.Password)
 	userID, createErr := dbHelper.CreateUser(&body)
 	if createErr != nil || userID == "" {
 		fmt.Println(createErr)
@@ -65,8 +65,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(roleType)
-	fmt.Println(userID)
 	accessToken, accessErr := middleware.GenerateAccessToken(userID, roleType)
 	refreshToken, refreshErr := middleware.GenerateRefreshToken(userID)
 	if accessErr != nil || refreshErr != nil {
@@ -108,6 +106,24 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message": "logout successfully",
+	})
+	if EncodeErr != nil {
+		return
+	}
+}
+
+func CalculateDistance(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Calculating distance")
+	userID := mux.Vars(r)["user_id"]
+	restaurantID := mux.Vars(r)["restaurant_id"]
+	locate, err := dbHelper.CalculateDistance(userID, restaurantID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to calculate distance")
+		return
+	}
+	distance := utils.HaversineDistance(locate)
+	EncodeErr := json.NewEncoder(w).Encode(map[string]float64{
+		"distance in km": distance,
 	})
 	if EncodeErr != nil {
 		return

@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS restaurant(
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL ,
     opening_time  TIME,
-    losing_time TIME,
+    closing_time TIME,
     created_by UUID REFERENCES users(id) NOT NULL ,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     archived_at TIMESTAMP WITH TIME ZONE

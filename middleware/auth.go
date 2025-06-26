@@ -14,6 +14,7 @@ type ContextKey string
 
 const (
 	userContext ContextKey = "userKey"
+	roleContext ContextKey = "roleKey"
 )
 
 type Claims struct {
@@ -74,6 +75,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// access token is valid
 		if err == nil && token.Valid {
 			ctx := context.WithValue(r.Context(), userContext, accessClaims.UserID)
+			ctx = context.WithValue(ctx, roleContext, accessClaims.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		} else { // access token invalid
@@ -90,4 +92,31 @@ func UserContext(r *http.Request) string {
 	}
 	return ""
 
+}
+
+func RoleContext(r *http.Request) []string {
+	if roles, ok := r.Context().Value(roleContext).([]string); ok {
+		return roles
+	}
+	return []string{}
+}
+
+func AuthRole(allowedRoles ...string) func(http.Handler) http.Handler {
+	roleSet := make(map[string]struct{})
+	for _, role := range allowedRoles {
+		roleSet[strings.ToLower(role)] = struct{}{}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userRoles := RoleContext(r)
+			for _, role := range userRoles {
+				if _, ok := roleSet[strings.ToLower(role)]; ok {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			utils.ResponseError(w, http.StatusForbidden, "unauthorized role")
+		})
+	}
 }

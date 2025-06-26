@@ -5,6 +5,7 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -142,4 +143,21 @@ func Logout(userID string, refreshToken string) error {
 	}
 
 	return nil
+}
+
+func CalculateDistance(userID string, restaurantID string) (models.Distance, error) {
+	fmt.Println("Calculating distance")
+	var body models.Distance
+	query := `SELECT user_address.latitude , user_address.longitude from user_address join users on user_address.user_id = users.id WHERE user_id=$1`
+	err := database.RMS.QueryRowx(query, userID).Scan(&body.UserLat, &body.UserLong)
+	if err != nil {
+		return models.Distance{}, err
+	}
+	query = `SELECT latitude , longitude from restaurant WHERE id=$1`
+	err = database.RMS.QueryRowx(query, restaurantID).Scan(&body.RestaurantLat, &body.RestaurantLong)
+	if err != nil {
+		return models.Distance{}, err
+	}
+	return body, nil
+
 }
