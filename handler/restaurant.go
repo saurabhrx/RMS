@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"RMS/database"
 	"RMS/database/dbHelper"
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
 	"encoding/json"
+	"github.com/jmoiron/sqlx"
 	"net/http"
 )
 
@@ -19,16 +21,20 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 	}
 	exists, existsErr := dbHelper.IsRestaurantExists(body.Name, body.Latitude, body.Longitude)
 	if existsErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "error while creating restaurant")
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create restaurant")
 		return
 	}
 	if exists {
 		utils.ResponseError(w, http.StatusConflict, "restaurant already exists")
 		return
 	}
-	_, CreateError := dbHelper.CreateRestaurant(&body)
-	if CreateError != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "error while creating restaurant")
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		_, CreateErr := dbHelper.CreateRestaurant(tx, &body)
+		return CreateErr
+
+	})
+	if txErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create restaurant")
 		return
 	}
 

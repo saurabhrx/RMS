@@ -8,6 +8,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 )
 
 var RMS *sqlx.DB
@@ -46,4 +47,24 @@ func migrateUp(db *sqlx.DB) error {
 
 func CloseDBConnection() error {
 	return RMS.Close()
+}
+
+func Tx(fn func(tx *sqlx.Tx) error) error {
+	tx, err := RMS.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				logrus.Error("failed to rollback")
+			}
+			return
+		}
+		if commitErr := tx.Commit(); commitErr != nil {
+			logrus.Error("failed to commit")
+		}
+	}()
+	err = fn(tx)
+	return err
 }

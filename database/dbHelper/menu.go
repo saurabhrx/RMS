@@ -5,12 +5,13 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
+	"github.com/jmoiron/sqlx"
 )
 
-func CreateDish(body *models.MenuRequest) (string, error) {
+func CreateDish(db sqlx.Ext, body *models.MenuRequest) (string, error) {
 	query := `INSERT INTO menu(name, price,restaurant_id,created_by) VALUES ($1, $2, $3, $4) RETURNING id`
 	var menuID string
-	err := database.RMS.QueryRowx(query, body.Name, body.Price, body.RestaurantId, body.CreatedBy).Scan(&menuID)
+	err := db.QueryRowx(query, body.Name, body.Price, body.RestaurantId, body.CreatedBy).Scan(&menuID)
 	if err != nil {
 		return "", err
 	}

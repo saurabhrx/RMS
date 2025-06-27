@@ -5,6 +5,7 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,7 +23,7 @@ func IsUserExists(email string) (bool, error) {
 	return true, nil
 }
 
-func Register(body *models.RegisterRequest) (string, error) {
+func Register(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 	var (
 		userID string
 		err    error
@@ -30,7 +31,7 @@ func Register(body *models.RegisterRequest) (string, error) {
 
 	query := `INSERT INTO users(name, email, password) 
 		       VALUES ($1, $2, $3) RETURNING id`
-	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password).Scan(&userID)
+	err = db.QueryRowx(query, body.Name, body.Email, body.Password).Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -42,14 +43,14 @@ func Register(body *models.RegisterRequest) (string, error) {
 		return "", err
 	}
 	insertQuery := `INSERT INTO user_role(user_id, role_id) VALUES ($1, $2)`
-	_, err = database.RMS.Exec(insertQuery, userID, roleID)
+	_, err = db.Exec(insertQuery, userID, roleID)
 	if err != nil {
 		return "", err
 	}
 
 	for _, address := range body.Address {
 		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
-		_, err = database.RMS.Exec(addressQuery, userID, address.Latitude, address.Longitude)
+		_, err = db.Exec(addressQuery, userID, address.Latitude, address.Longitude)
 		if err != nil {
 			return "", err
 		}
@@ -59,7 +60,7 @@ func Register(body *models.RegisterRequest) (string, error) {
 }
 
 // for admin/subadmin
-func CreateUser(body *models.CreateUserRequest) (string, error) {
+func CreateUser(db sqlx.Ext, body *models.CreateUserRequest) (string, error) {
 	var (
 		userID string
 		err    error
@@ -70,7 +71,7 @@ func CreateUser(body *models.CreateUserRequest) (string, error) {
 	}
 	query := `INSERT INTO users(name, email, password, created_by) 
 		       VALUES ($1, $2, $3, $4) RETURNING id`
-	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
+	err = db.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -83,26 +84,18 @@ func CreateUser(body *models.CreateUserRequest) (string, error) {
 			return "", err
 		}
 		insertQuery := `INSERT INTO user_role(user_id, role_id) VALUES ($1, $2)`
-		_, err = database.RMS.Exec(insertQuery, userID, roleID)
+		_, err = db.Exec(insertQuery, userID, roleID)
 		if err != nil {
 			return "", err
 		}
 	}
-
-	//for _, address := range body.Address {
-	//	addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
-	//	_, err = database.RMS.Exec(addressQuery, userID, address.Latitude, address.Longitude)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//}
 
 	return userID, nil
 }
 
 // subadmin
 
-func CreateUserBySubadmin(body *models.CreateUserRequestBySubadmin) (string, error) {
+func CreateUserBySubadmin(db sqlx.Ext, body *models.CreateUserRequestBySubadmin) (string, error) {
 	var (
 		userID string
 		err    error
@@ -110,7 +103,7 @@ func CreateUserBySubadmin(body *models.CreateUserRequestBySubadmin) (string, err
 
 	query := `INSERT INTO users(name, email, password, created_by) 
 		       VALUES ($1, $2, $3, $4) RETURNING id`
-	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
+	err = db.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +115,7 @@ func CreateUserBySubadmin(body *models.CreateUserRequestBySubadmin) (string, err
 		return "", err
 	}
 	insertQuery := `INSERT INTO user_role(user_id, role_id) VALUES ($1, $2)`
-	_, err = database.RMS.Exec(insertQuery, userID, roleID)
+	_, err = db.Exec(insertQuery, userID, roleID)
 	if err != nil {
 		return "", err
 	}
@@ -146,11 +139,10 @@ func ValidateUser(email, password string) (string, error) {
 	}
 	return userId, nil
 }
-
-func CreateAddress(body *models.UserAddress) error {
+func CreateAddress(db sqlx.Ext, body *models.UserAddress) error {
 	for _, address := range body.Address {
 		SQL := `INSERT INTO user_address(user_id,latitude,longitude) VALUES ($1,$2,$3)`
-		_, err := database.RMS.Exec(SQL, body.UserID, address.Latitude, address.Longitude)
+		_, err := db.Exec(SQL, body.UserID, address.Latitude, address.Longitude)
 		if err != nil {
 			return err
 		}
@@ -175,10 +167,10 @@ func GetRoleByUserID(userID string) ([]string, error) {
 	return roleType, nil
 }
 
-func CreateSession(userID string, refreshToken string) (string, error) {
+func CreateSession(db sqlx.Ext, userID string, refreshToken string) (string, error) {
 	var sessionID string
 	SQL := `INSERT INTO user_session(user_id,refresh_token) VALUES($1,$2) RETURNING id`
-	if err := database.RMS.QueryRowx(SQL, userID, refreshToken).Scan(&sessionID); err != nil {
+	if err := db.QueryRowx(SQL, userID, refreshToken).Scan(&sessionID); err != nil {
 		return "", err
 	}
 	return sessionID, nil
@@ -194,11 +186,11 @@ func CreateSession(userID string, refreshToken string) (string, error) {
 //	return true
 //}
 
-func UpdateRefreshToken(userID, oldToken, newToken string) error {
+func UpdateRefreshToken(db sqlx.Ext, userID, oldToken, newToken string) error {
 	query := `UPDATE user_session 
 	          SET refresh_token = $1, created_at = NOW()
 	          WHERE user_id = $2 AND refresh_token = $3 AND archived_at IS NULL`
-	_, err := database.RMS.Exec(query, newToken, userID, oldToken)
+	_, err := db.Exec(query, newToken, userID, oldToken)
 	return err
 }
 

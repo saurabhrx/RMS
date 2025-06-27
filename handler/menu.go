@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"RMS/database"
 	"RMS/database/dbHelper"
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"net/http"
 )
 
@@ -27,11 +29,17 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusConflict, "restaurant already exists")
 		return
 	}
-	_, CreateError := dbHelper.CreateDish(&body)
-	if CreateError != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "error while creating restaurant")
+
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		_, createErr := dbHelper.CreateDish(tx, &body)
+		return createErr
+
+	})
+	if txErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create dish")
 		return
 	}
+
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message":    "dish successfully created",
 		"created_by": userID,

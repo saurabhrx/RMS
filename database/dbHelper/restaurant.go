@@ -5,6 +5,7 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
+	"github.com/jmoiron/sqlx"
 )
 
 func IsRestaurantExists(name string, lat, long float64) (bool, error) {
@@ -21,11 +22,11 @@ func IsRestaurantExists(name string, lat, long float64) (bool, error) {
 
 }
 
-func CreateRestaurant(body *models.RestaurantRequest) (string, error) {
+func CreateRestaurant(db sqlx.Ext, body *models.RestaurantRequest) (string, error) {
 	query := `INSERT INTO restaurant(name ,contact,opening_time,closing_time,latitude,longitude,created_by) 
               VALUES ($1, $2, $3, $4,$5,$6,$7) RETURNING id`
 	var restID string
-	err := database.RMS.QueryRowx(query, body.Name, body.Contact, body.OpeningTime, body.ClosingTime, body.Latitude, body.Longitude, body.CreatedBy).Scan(&restID)
+	err := db.QueryRowx(query, body.Name, body.Contact, body.OpeningTime, body.ClosingTime, body.Latitude, body.Longitude, body.CreatedBy).Scan(&restID)
 	if err != nil {
 		return "", err
 	}

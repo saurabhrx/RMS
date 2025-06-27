@@ -1,14 +1,15 @@
 package handler
 
 import (
+	"RMS/database"
 	"RMS/database/dbHelper"
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
 	"encoding/json"
-	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ var jwtSecret = []byte(os.Getenv("SECRET_KEY"))
 
 func Register(w http.ResponseWriter, r *http.Request) {
 	var body models.RegisterRequest
+	var userID string
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
@@ -41,8 +43,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Password = string(hashedPassword)
-	userID, createErr := dbHelper.Register(&body)
-	if createErr != nil || userID == "" {
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		user, createErr := dbHelper.Register(tx, &body)
+		userID = user
+		return createErr
+
+	})
+	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
@@ -83,9 +90,13 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	body.Password = string(hashedPassword)
 	body.CreatedBy = userID
-	userID, createErr := dbHelper.CreateUser(&body)
-	if createErr != nil || userID == "" {
-		fmt.Println(createErr)
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		user, createErr := dbHelper.CreateUser(tx, &body)
+		userID = user
+		return createErr
+
+	})
+	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
@@ -131,9 +142,14 @@ func CreateUserBySubadmin(w http.ResponseWriter, r *http.Request) {
 	}
 	body.Password = string(hashedPassword)
 	body.CreatedBy = userID
-	userID, createErr := dbHelper.CreateUserBySubadmin(&body)
-	if createErr != nil || userID == "" {
-		fmt.Println(createErr)
+
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		user, createErr := dbHelper.CreateUserBySubadmin(tx, &body)
+		userID = user
+		return createErr
+
+	})
+	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
@@ -170,8 +186,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, sessErr := dbHelper.CreateSession(userID, refreshToken)
-	if sessErr != nil {
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		_, sessErr := dbHelper.CreateSession(tx, userID, refreshToken)
+		return sessErr
+
+	})
+	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create session")
 		return
 	}
@@ -195,8 +215,13 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.UserID = userID
-	if err := dbHelper.CreateAddress(&body); err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to create address")
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		createErr := dbHelper.CreateAddress(tx, &body)
+		return createErr
+
+	})
+	if txErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
@@ -322,8 +347,14 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 		return
 	}
-	if err := dbHelper.UpdateRefreshToken(body.UserID, body.Token, refreshToken); err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the session")
+	txErr := database.Tx(func(tx *sqlx.Tx) error {
+		createErr := dbHelper.UpdateRefreshToken(tx, body.UserID, body.Token, refreshToken)
+		return createErr
+
+	})
+	if txErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refersh token")
+		return
 	}
 
 }
