@@ -10,7 +10,7 @@ import (
 func SetupTodoRoutes() *mux.Router {
 	srv := mux.NewRouter()
 
-	// public api
+	// public route
 	srv.HandleFunc("/register", handler.Register).Methods("POST")
 	srv.HandleFunc("/login", handler.Login).Methods("POST")
 	srv.HandleFunc("/refresh", handler.Refresh).Methods("POST")
@@ -21,11 +21,11 @@ func SetupTodoRoutes() *mux.Router {
 	protected := srv.NewRoute().Subrouter()
 	protected.Use(middleware.AuthMiddleware)
 
-	// private api
+	// private route
 	protected.HandleFunc("/create-address", handler.CreateAddress).Methods("POST")
 	protected.HandleFunc("/logout", handler.Logout).Methods("POST")
 
-	// admin/subadmin
+	// admin/sub-admin
 	roleProtected := protected.NewRoute().Subrouter()
 	roleProtected.Use(middleware.AuthRole(models.RoleAdmin, models.RoleSubadmin))
 	roleProtected.HandleFunc("/create-restaurant", handler.CreateRestaurant).Methods("POST")
@@ -40,7 +40,7 @@ func SetupTodoRoutes() *mux.Router {
 	adminOnly.HandleFunc("/get-subadmin", handler.GetAllSubadmin).Methods("GET")
 	adminOnly.HandleFunc("/create-user", handler.CreateUser).Methods("POST")
 
-	//only subadmin
+	//only sub-admin
 	subadminOnly := protected.NewRoute().Subrouter()
 	subadminOnly.Use(middleware.AuthRole(models.RoleSubadmin))
 	subadminOnly.HandleFunc("/subadmin/create-user", handler.CreateUserBySubadmin).Methods("POST")
