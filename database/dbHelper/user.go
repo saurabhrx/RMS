@@ -5,7 +5,6 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -28,6 +27,7 @@ func Register(body *models.RegisterRequest) (string, error) {
 		userID string
 		err    error
 	)
+
 	query := `INSERT INTO users(name, email, password) 
 		       VALUES ($1, $2, $3) RETURNING id`
 	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password).Scan(&userID)
@@ -89,14 +89,43 @@ func CreateUser(body *models.CreateUserRequest) (string, error) {
 		}
 	}
 
-	for _, address := range body.Address {
-		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
-		_, err = database.RMS.Exec(addressQuery, userID, address.Latitude, address.Longitude)
-		if err != nil {
-			return "", err
-		}
+	//for _, address := range body.Address {
+	//	addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
+	//	_, err = database.RMS.Exec(addressQuery, userID, address.Latitude, address.Longitude)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//}
+
+	return userID, nil
+}
+
+// subadmin
+
+func CreateUserBySubadmin(body *models.CreateUserRequestBySubadmin) (string, error) {
+	var (
+		userID string
+		err    error
+	)
+
+	query := `INSERT INTO users(name, email, password, created_by) 
+		       VALUES ($1, $2, $3, $4) RETURNING id`
+	err = database.RMS.QueryRowx(query, body.Name, body.Email, body.Password, body.CreatedBy).Scan(&userID)
+	if err != nil {
+		return "", err
 	}
 
+	var roleID string
+	selectQuery := `SELECT id FROM role WHERE role_type = $1`
+	err = database.RMS.Get(&roleID, selectQuery, body.Role)
+	if err != nil {
+		return "", err
+	}
+	insertQuery := `INSERT INTO user_role(user_id, role_id) VALUES ($1, $2)`
+	_, err = database.RMS.Exec(insertQuery, userID, roleID)
+	if err != nil {
+		return "", err
+	}
 	return userID, nil
 }
 
@@ -116,6 +145,17 @@ func ValidateUser(email, password string) (string, error) {
 		return "", passwordErr
 	}
 	return userId, nil
+}
+
+func CreateAddress(body *models.UserAddress) error {
+	for _, address := range body.Address {
+		SQL := `INSERT INTO user_address(user_id,latitude,longitude) VALUES ($1,$2,$3)`
+		_, err := database.RMS.Exec(SQL, body.UserID, address.Latitude, address.Longitude)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func GetRoleByUserID(userID string) ([]string, error) {
@@ -144,14 +184,22 @@ func CreateSession(userID string, refreshToken string) (string, error) {
 	return sessionID, nil
 }
 
-func ValidateSession(userID string, refreshToken string) bool {
-	SQL := `SELECT user_id from user_session WHERE refresh_token=$1 AND user_id = $2 AND archived_at IS NULL`
-	var user string
-	err := database.RMS.Get(&user, SQL, refreshToken, userID)
-	if err != nil {
-		return false
-	}
-	return true
+//func ValidateSession(userID string, refreshToken string) bool {
+//	SQL := `SELECT user_id from user_session WHERE refresh_token=$1 AND user_id = $2 AND archived_at IS NULL`
+//	var user string
+//	err := database.RMS.Get(&user, SQL, refreshToken, userID)
+//	if err != nil {
+//		return false
+//	}
+//	return true
+//}
+
+func UpdateRefreshToken(userID, oldToken, newToken string) error {
+	query := `UPDATE user_session 
+	          SET refresh_token = $1, created_at = NOW()
+	          WHERE user_id = $2 AND refresh_token = $3 AND archived_at IS NULL`
+	_, err := database.RMS.Exec(query, newToken, userID, oldToken)
+	return err
 }
 
 func Logout(userID string, refreshToken string) error {
@@ -173,12 +221,11 @@ func Logout(userID string, refreshToken string) error {
 	return nil
 }
 
-func CalculateDistance(userID string, restaurantID string) (models.Distance, error) {
-	fmt.Println("Calculating distance")
+func CalculateDistance(addressID string, restaurantID string) (models.Distance, error) {
 	var body models.Distance
 	SQL := `SELECT user_address.latitude , user_address.longitude FROM user_address 
-            JOIN users ON user_address.user_id = users.id WHERE user_id=$1`
-	err := database.RMS.QueryRowx(SQL, userID).Scan(&body.UserLat, &body.UserLong)
+            WHERE id=$1`
+	err := database.RMS.QueryRowx(SQL, addressID).Scan(&body.UserLat, &body.UserLong)
 	if err != nil {
 		return models.Distance{}, err
 	}

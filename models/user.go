@@ -13,14 +13,24 @@ type RegisterRequest struct {
 	Address  []Location `json:"address" db:"address"`
 }
 type CreateUserRequest struct {
-	Name      string     `json:"name" db:"name"`
-	Email     string     `json:"email" db:"email"`
-	Password  string     `json:"password" db:"password"`
-	Role      []string   `json:"role" db:"role"`
-	CreatedBy string     `json:"created_by" db:"created_by"`
-	Address   []Location `json:"address" db:"address"`
+	Name      string   `json:"name" db:"name"`
+	Email     string   `json:"email" db:"email"`
+	Password  string   `json:"password" db:"password"`
+	Role      []string `json:"role" db:"role"`
+	CreatedBy string   `json:"created_by" db:"created_by"`
+}
+type CreateUserRequestBySubadmin struct {
+	Name      string `json:"name" db:"name"`
+	Email     string `json:"email" db:"email"`
+	Password  string `json:"password" db:"password"`
+	Role      string `json:"role" db:"role"`
+	CreatedBy string `json:"created_by" db:"created_by"`
 }
 
+type UserAddress struct {
+	UserID  string     `json:"user_id" db:"user_id"`
+	Address []Location `json:"address" db:"address"`
+}
 type Location struct {
 	Latitude  float64 `json:"latitude" db:"latitude"`
 	Longitude float64 `json:"longitude" db:"longitude"`
@@ -51,4 +61,9 @@ type UseResponse struct {
 	ID   string `json:"id" db:"id"`
 	Name string `json:"name" db:"name"`
 	Role string `json:"role" db:"role_type"`
+}
+
+type RefreshToken struct {
+	UserID string `json:"user_id"`
+	Token  string `json:"refresh_token"`
 }

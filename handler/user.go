@@ -7,10 +7,14 @@ import (
 	"RMS/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"os"
 )
+
+var jwtSecret = []byte(os.Getenv("SECRET_KEY"))
 
 func Register(w http.ResponseWriter, r *http.Request) {
 	var body models.RegisterRequest
@@ -42,12 +46,12 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
-	err := json.NewEncoder(w).Encode(map[string]string{
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message": "user created successfully",
 		"user_id": userID,
 	})
-	if err != nil {
-		return
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -85,12 +89,60 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
 		return
 	}
-	err := json.NewEncoder(w).Encode(map[string]string{
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message": "user created successfully",
 		"user_id": userID,
 	})
-	if err != nil {
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+	}
+}
+
+func CreateUserBySubadmin(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	var body models.CreateUserRequestBySubadmin
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
+	}
+	if body.Email == "" || body.Password == "" || body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
+		return
+	}
+
+	if body.Role != "user" {
+		utils.ResponseError(w, http.StatusBadRequest, "only authorized to create user")
+		return
+	}
+
+	exists, existsErr := dbHelper.IsUserExists(body.Email)
+	if existsErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while creating User")
+		return
+	}
+	if exists {
+		utils.ResponseError(w, http.StatusConflict, "user already exists")
+		return
+	}
+	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	if hashErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to hash password")
+		return
+	}
+	body.Password = string(hashedPassword)
+	body.CreatedBy = userID
+	userID, createErr := dbHelper.CreateUserBySubadmin(&body)
+	if createErr != nil || userID == "" {
+		fmt.Println(createErr)
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message": "user created successfully",
+		"user_id": userID,
+	})
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -130,9 +182,29 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	})
 	if EncodeErr != nil {
-		return
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 
+}
+
+func CreateAddress(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserContext(r)
+	var body models.UserAddress
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "failed to Decode json")
+		return
+	}
+	body.UserID = userID
+	if err := dbHelper.CreateAddress(&body); err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to create address")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message": "address created successfully",
+	})
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+	}
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
@@ -154,15 +226,14 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		"message": "logout successfully",
 	})
 	if EncodeErr != nil {
-		return
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
 func CalculateDistance(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Calculating distance")
-	userID := mux.Vars(r)["user_id"]
+	addressID := mux.Vars(r)["address_id"]
 	restaurantID := mux.Vars(r)["restaurant_id"]
-	locate, err := dbHelper.CalculateDistance(userID, restaurantID)
+	locate, err := dbHelper.CalculateDistance(addressID, restaurantID)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to calculate distance")
 		return
@@ -172,7 +243,7 @@ func CalculateDistance(w http.ResponseWriter, r *http.Request) {
 		"distance in km": distance,
 	})
 	if EncodeErr != nil {
-		return
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -185,7 +256,7 @@ func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
 	}
 	EncodeErr := json.NewEncoder(w).Encode(subAdmin)
 	if EncodeErr != nil {
-		return
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send request")
 	}
 
 }
@@ -199,6 +270,60 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	EncodeErr := json.NewEncoder(w).Encode(users)
 	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+	}
+}
+
+func Refresh(w http.ResponseWriter, r *http.Request) {
+	var body models.RefreshToken
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if body.UserID == "" || body.Token == "" {
+		utils.ResponseError(w, http.StatusUnauthorized, "session expired login again")
+		return
+	}
+	claims := &jwt.RegisteredClaims{}
+	token, err := jwt.ParseWithClaims(body.Token, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		err := dbHelper.Logout(body.UserID, body.Token)
+		if err != nil {
+			utils.ResponseError(w, http.StatusInternalServerError, "failed to delete the session")
+			return
+		}
+		utils.ResponseError(w, http.StatusUnauthorized, "session expired login again")
+		return
+
+	}
+	roleType, roleTypeErr := dbHelper.GetRoleByUserID(body.UserID)
+	if roleTypeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while getting role")
+		return
+	}
+	accessToken, err := middleware.GenerateAccessToken(body.UserID, roleType)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "could not generate access token")
+		return
+	}
+	refreshToken, RefreshErr := middleware.GenerateRefreshToken(body.UserID)
+	if RefreshErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "could not generate refresh token")
+		return
+	}
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message":       "new access token and refresh token generated successfully",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+		return
+	}
+	if err := dbHelper.UpdateRefreshToken(body.UserID, body.Token, refreshToken); err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the session")
+	}
+
 }
