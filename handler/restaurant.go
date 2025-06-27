@@ -11,6 +11,7 @@ import (
 	"net/http"
 )
 
+
 func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 	var body models.RestaurantRequest
 	userID := middleware.UserContext(r)
