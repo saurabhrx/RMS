@@ -21,14 +21,20 @@ CREATE TABLE IF NOT EXISTS restaurant(
     archived_at TIMESTAMP WITH TIME ZONE
 );
 
+
+CREATE UNIQUE INDEX IF NOT EXISTS active_user ON users(TRIM(LOWER(email))) WHERE archived_at is NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_restaurant ON  restaurant(TRIM(LOWER(name)) , latitude, longitude) WHERE archived_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS user_address(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) NOT NULL ,
     latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL
+    longitude DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    archived_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS active_user ON users(TRIM(LOWER(email))) WHERE archived_at is NULL;
 
 CREATE TABLE IF NOT EXISTS role(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,6 +61,7 @@ CREATE TABLE IF NOT EXISTS menu(
     archived_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS active_menu ON menu(TRIM(LOWER(name)),restaurant_id) WHERE archived_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS user_session(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,6 +101,8 @@ CREATE TABLE IF NOT EXISTS bill(
     archived_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS active_bill ON bill(order_id) WHERE archived_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS review(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     restaurant_id UUID REFERENCES restaurant(id) NOT NULL ,
@@ -103,3 +112,4 @@ CREATE TABLE IF NOT EXISTS review(
     archived_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS active_review ON review(restaurant_id,user_id) WHERE archived_at IS NULL;
