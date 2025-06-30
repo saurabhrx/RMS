@@ -5,7 +5,6 @@ import (
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
-	"encoding/json"
 	"net/http"
 )
 

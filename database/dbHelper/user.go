@@ -60,7 +60,7 @@ func Register(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 }
 
 // for admin/subadmin
-func CreateUser(db sqlx.Ext, body *models.CreateUserRequest) (string, error) {
+func CreateUserByAdmin(db sqlx.Ext, body *models.CreateUserRequest) (string, error) {
 	var (
 		userID string
 		err    error

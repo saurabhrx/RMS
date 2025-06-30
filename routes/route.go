@@ -38,7 +38,7 @@ func SetupTodoRoutes() *mux.Router {
 	adminOnly := protected.NewRoute().Subrouter()
 	adminOnly.Use(middleware.AuthRole(models.RoleAdmin))
 	adminOnly.HandleFunc("/admin/get-subadmin", handler.GetAllSubadmin).Methods("GET")
-	adminOnly.HandleFunc("/admin/create-user", handler.CreateUser).Methods("POST")
+	adminOnly.HandleFunc("/admin/create-user", handler.CreateUserByAdmin).Methods("POST")
 
 	//only sub-admin
 	subadminOnly := protected.NewRoute().Subrouter()

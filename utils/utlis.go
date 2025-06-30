@@ -2,11 +2,13 @@ package utils
 
 import (
 	"RMS/models"
-	"encoding/json"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/sirupsen/logrus"
 	"math"
 	"net/http"
 )
+
+var JSON = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type clientError struct {
 	StatusCode    int    `json:"status_code"`
