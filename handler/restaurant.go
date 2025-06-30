@@ -1,16 +1,13 @@
 package handler
 
 import (
-	"RMS/database"
 	"RMS/database/dbHelper"
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
 	"encoding/json"
-	"github.com/jmoiron/sqlx"
 	"net/http"
 )
-
 
 func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 	var body models.RestaurantRequest
@@ -29,22 +26,20 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusConflict, "restaurant already exists")
 		return
 	}
-	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		_, CreateErr := dbHelper.CreateRestaurant(tx, &body)
-		return CreateErr
+	restaurantID, createErr := dbHelper.CreateRestaurant(&body)
 
-	})
-	if txErr != nil {
+	if createErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create restaurant")
 		return
 	}
 
-	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
-		"message":    "restaurant successfully created",
-		"created_by": userID,
+	encodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message":       "restaurant successfully created",
+		"created_by":    userID,
+		"restaurant_id": restaurantID,
 	})
-	if EncodeErr != nil {
-		return
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -54,9 +49,9 @@ func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
 		return
 	}
-	EncodeErr := json.NewEncoder(w).Encode(restaurants)
-	if EncodeErr != nil {
-		return
+	encodeErr := json.NewEncoder(w).Encode(restaurants)
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -71,9 +66,9 @@ func GetRestaurantByUerID(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusOK, "no record available")
 		return
 	}
-	EncodeErr := json.NewEncoder(w).Encode(restaurants)
-	if EncodeErr != nil {
-		return
+	encodeErr := json.NewEncoder(w).Encode(restaurants)
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 
 }

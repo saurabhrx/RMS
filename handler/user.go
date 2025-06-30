@@ -281,7 +281,7 @@ func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
 	}
 	EncodeErr := json.NewEncoder(w).Encode(subAdmin)
 	if EncodeErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to send request")
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send respond")
 	}
 
 }
@@ -354,7 +354,6 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refresh token")
-		return
 	}
 
 }

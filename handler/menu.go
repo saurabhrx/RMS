@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"RMS/database"
 	"RMS/database/dbHelper"
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 	"net/http"
 )
 
@@ -30,22 +28,20 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		_, createErr := dbHelper.CreateDish(tx, &body)
-		return createErr
+	dishID, createErr := dbHelper.CreateDish(&body)
 
-	})
-	if txErr != nil {
+	if createErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create dish")
 		return
 	}
 
-	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+	encodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message":    "dish successfully created",
 		"created_by": userID,
+		"dish_id":    dishID,
 	})
-	if EncodeErr != nil {
-		return
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -57,9 +53,9 @@ func GetDishesByRestaurant(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurant")
 		return
 	}
-	EncodeErr := json.NewEncoder(w).Encode(dishes)
-	if EncodeErr != nil {
-		return
+	encodeErr := json.NewEncoder(w).Encode(dishes)
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
 
@@ -74,8 +70,8 @@ func GetDishesByUserID(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusOK, "no record available")
 		return
 	}
-	EncodeErr := json.NewEncoder(w).Encode(dishes)
-	if EncodeErr != nil {
-		return
+	encodeErr := json.NewEncoder(w).Encode(dishes)
+	if encodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
 	}
 }
