@@ -6,7 +6,6 @@ import (
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
-	"encoding/json"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -15,6 +14,7 @@ import (
 	"os"
 )
 
+var json = utils.JSON
 var jwtSecret = []byte(os.Getenv("SECRET_KEY"))
 
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +62,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func CreateUser(w http.ResponseWriter, r *http.Request) {
+func CreateUserByAdmin(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserContext(r)
 	var body models.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -91,7 +91,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	body.Password = string(hashedPassword)
 	body.CreatedBy = userID
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		user, createErr := dbHelper.CreateUser(tx, &body)
+		user, createErr := dbHelper.CreateUserByAdmin(tx, &body)
 		userID = user
 		return createErr
 
@@ -281,7 +281,7 @@ func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
 	}
 	EncodeErr := json.NewEncoder(w).Encode(subAdmin)
 	if EncodeErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to send request")
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send respond")
 	}
 
 }
@@ -354,7 +354,6 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refresh token")
-		return
 	}
 
 }
