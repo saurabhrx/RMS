@@ -9,16 +9,16 @@ import (
 
 func SetupTodoRoutes() *mux.Router {
 	srv := mux.NewRouter()
-
+	api := srv.PathPrefix("/api/v1").Subrouter()
 	// public route
-	srv.HandleFunc("/register", handler.Register).Methods("POST")
-	srv.HandleFunc("/login", handler.Login).Methods("POST")
-	srv.HandleFunc("/refresh", handler.Refresh).Methods("POST")
-	srv.HandleFunc("/restaurants", handler.GetAllRestaurant).Methods("GET")
-	srv.HandleFunc("/restaurant/{restaurant_id}/menu", handler.GetDishesByRestaurant).Methods("GET")
-	srv.HandleFunc("/user/{address_id}/restaurant/{restaurant_id}/distance", handler.CalculateDistance).Methods("GET")
+	api.HandleFunc("/register", handler.Register).Methods("POST")
+	api.HandleFunc("/login", handler.Login).Methods("POST")
+	api.HandleFunc("/refresh", handler.Refresh).Methods("POST")
+	api.HandleFunc("/restaurants", handler.GetAllRestaurant).Methods("GET")
+	api.HandleFunc("/restaurant/{restaurant_id}/menu", handler.GetDishesByRestaurant).Methods("GET")
+	api.HandleFunc("/user/{address_id}/restaurant/{restaurant_id}/distance", handler.CalculateDistance).Methods("GET")
 
-	protected := srv.NewRoute().Subrouter()
+	protected := api.NewRoute().Subrouter()
 	protected.Use(middleware.AuthMiddleware)
 
 	// private route
@@ -37,8 +37,8 @@ func SetupTodoRoutes() *mux.Router {
 	// only admin
 	adminOnly := protected.NewRoute().Subrouter()
 	adminOnly.Use(middleware.AuthRole(models.RoleAdmin))
-	adminOnly.HandleFunc("/get-subadmin", handler.GetAllSubadmin).Methods("GET")
-	adminOnly.HandleFunc("/create-user", handler.CreateUser).Methods("POST")
+	adminOnly.HandleFunc("/admin/get-subadmin", handler.GetAllSubadmin).Methods("GET")
+	adminOnly.HandleFunc("/admin/create-user", handler.CreateUser).Methods("POST")
 
 	//only sub-admin
 	subadminOnly := protected.NewRoute().Subrouter()

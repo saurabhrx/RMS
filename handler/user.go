@@ -353,7 +353,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 
 	})
 	if txErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refersh token")
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refresh token")
 		return
 	}
 

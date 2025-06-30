@@ -8,7 +8,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/sirupsen/logrus"
 )
 
 var RMS *sqlx.DB
@@ -55,14 +54,13 @@ func Tx(fn func(tx *sqlx.Tx) error) error {
 		return err
 	}
 	defer func() {
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				logrus.Error("failed to rollback")
-			}
-			return
-		}
-		if commitErr := tx.Commit(); commitErr != nil {
-			logrus.Error("failed to commit")
+		if r := recover(); r != nil {
+			_ = tx.Rollback()
+			panic(r)
+		} else if err != nil {
+			_ = tx.Rollback()
+		} else {
+			_ = tx.Commit()
 		}
 	}()
 	err = fn(tx)
