@@ -6,7 +6,6 @@ import (
 	"RMS/models"
 	"RMS/utils"
 	"net/http"
-	"strconv"
 )
 
 func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
@@ -15,6 +14,22 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 	body.CreatedBy = userID
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
+		return
+	}
+	if body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide name")
+		return
+	}
+	if body.Contact == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide contact")
+		return
+	}
+	if body.Latitude > -90 && body.Longitude < 90 {
+		utils.ResponseError(w, http.StatusBadRequest, "latitude must be between -90 and 90 degree")
+		return
+	}
+	if body.Latitude > -180 && body.Longitude < 180 {
+		utils.ResponseError(w, http.StatusBadRequest, "latitude must be between -90 and 90 degree")
 		return
 	}
 	exists, existsErr := dbHelper.IsRestaurantExists(body.Name, body.Latitude, body.Longitude)
@@ -44,16 +59,8 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
-	restaurants, err := dbHelper.GetAllRestaurants(limit, page-1)
+	limit, offset := utils.Pagination(r)
+	restaurants, err := dbHelper.GetAllRestaurants(limit, offset)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
 		return
@@ -65,17 +72,9 @@ func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRestaurantByUserID(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
+	limit, offset := utils.Pagination(r)
 	userID := middleware.UserContext(r)
-	restaurants, err := dbHelper.GetRestaurantByUserID(userID, limit, page-1)
+	restaurants, err := dbHelper.GetRestaurantByUserID(userID, limit, offset)
 	if err != nil && restaurants != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
 		return

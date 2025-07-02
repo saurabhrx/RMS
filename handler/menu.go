@@ -7,7 +7,6 @@ import (
 	"RMS/utils"
 	"github.com/gorilla/mux"
 	"net/http"
-	"strconv"
 )
 
 func CreateDish(w http.ResponseWriter, r *http.Request) {
@@ -18,6 +17,19 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
 	}
+	if body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide name")
+		return
+	}
+	if body.Price < 0 {
+		utils.ResponseError(w, http.StatusBadRequest, "price must be greater or equal to 0")
+		return
+	}
+	if body.RestaurantId == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide restaurant ID")
+		return
+	}
+
 	exists, existsErr := dbHelper.IsDishExists(body.Name, body.RestaurantId)
 	if existsErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while creating dishes")
@@ -45,18 +57,10 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetDishesByRestaurant(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
+	limit, offset := utils.Pagination(r)
 	vars := mux.Vars(r)
 	restaurantId := vars["restaurant_id"]
-	dishes, err := dbHelper.GetDishesByRestaurant(restaurantId, limit, page-1)
+	dishes, err := dbHelper.GetDishesByRestaurant(restaurantId, limit, offset)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting dishes")
 		return
@@ -68,17 +72,9 @@ func GetDishesByRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetDishesByUserID(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
+	limit, offset := utils.Pagination(r)
 	userID := middleware.UserContext(r)
-	dishes, err := dbHelper.GetDishesByUserID(userID, limit, page-1)
+	dishes, err := dbHelper.GetDishesByUserID(userID, limit, offset)
 	if err != nil && dishes != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting dishes")
 		return

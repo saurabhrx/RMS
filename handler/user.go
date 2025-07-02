@@ -6,14 +6,12 @@ import (
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
-	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 var json = utils.JSON
@@ -26,8 +24,16 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
 	}
-	if body.Email == "" || body.Password == "" || body.Name == "" {
-		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
+	if body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide name")
+		return
+	}
+	if body.Password == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide password")
+		return
+	}
+	if body.Email == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide email")
 		return
 	}
 	exists, existsErr := dbHelper.IsUserExists(body.Email)
@@ -71,8 +77,20 @@ func CreateUserByAdmin(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
 	}
-	if body.Email == "" || body.Password == "" || body.Name == "" {
-		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
+	if body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide name")
+		return
+	}
+	if body.Password == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide password")
+		return
+	}
+	if body.Email == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide email")
+		return
+	}
+	if len(body.Role) == 0 {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide at least one role")
 		return
 	}
 
@@ -100,7 +118,6 @@ func CreateUserByAdmin(w http.ResponseWriter, r *http.Request) {
 	})
 	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
-		fmt.Println(txErr)
 		return
 	}
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
@@ -119,11 +136,18 @@ func CreateUserBySubadmin(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to parse request body")
 		return
 	}
-	if body.Email == "" || body.Password == "" || body.Name == "" {
-		utils.ResponseError(w, http.StatusBadRequest, "name , email , password , cannot be empty")
+	if body.Name == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide name")
 		return
 	}
-
+	if body.Password == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide password")
+		return
+	}
+	if body.Email == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "please provide email")
+		return
+	}
 	if body.Role != "user" {
 		utils.ResponseError(w, http.StatusBadRequest, "only authorized to create user")
 		return
@@ -276,17 +300,9 @@ func CalculateDistance(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
+	limit, offset := utils.Pagination(r)
 	userID := middleware.UserContext(r)
-	subAdmin, err := dbHelper.GetAllSubadmin(userID, limit, page-1)
+	subAdmin, err := dbHelper.GetAllSubadmin(userID, limit, offset)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to get subadmin")
 		return
@@ -299,17 +315,9 @@ func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	page, limitErr := strconv.Atoi(queryParams.Get("page"))
-	if limitErr != nil {
-		return
-	}
-	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
-	if offsetErr != nil {
-		return
-	}
+	limit, offset := utils.Pagination(r)
 	userID := middleware.UserContext(r)
-	users, err := dbHelper.GetUsers(userID, limit, page-1)
+	users, err := dbHelper.GetUsers(userID, limit, offset)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to get users")
 		return
