@@ -21,7 +21,7 @@ func IsUserExists(email string) (bool, error) {
 	return exists, nil
 }
 
-func Register(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
+func RegisterUser(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 	var (
 		userID string
 		err    error
@@ -53,7 +53,6 @@ func Register(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 			return "", err
 		}
 	}
-
 	return userID, nil
 }
 
@@ -148,69 +147,6 @@ func CreateAddress(db sqlx.Ext, body *models.UserAddress) error {
 	return nil
 }
 
-func GetRoleByUserID(userID string) ([]string, error) {
-	var roleID []string
-	var roleType []string
-	SQL := `SELECT role_id FROM user_role WHERE user_id=$1`
-	err := database.RMS.Select(&roleID, SQL, userID)
-	if err != nil {
-		return []string{}, err
-	}
-	SQL = `SELECT role_type FROM role WHERE id=ANY($1)`
-	err = database.RMS.Select(&roleType, SQL, pq.Array(roleID))
-	if err != nil {
-		return []string{}, err
-	}
-
-	return roleType, nil
-}
-
-func CreateSession(db sqlx.Ext, userID string, refreshToken string) (string, error) {
-	var sessionID string
-	SQL := `INSERT INTO user_session(user_id,refresh_token) VALUES($1,$2) RETURNING id`
-	if err := db.QueryRowx(SQL, userID, refreshToken).Scan(&sessionID); err != nil {
-		return "", err
-	}
-	return sessionID, nil
-}
-
-//func ValidateSession(userID string, refreshToken string) bool {
-//	SQL := `SELECT user_id from user_session WHERE refresh_token=$1 AND user_id = $2 AND archived_at IS NULL`
-//	var user string
-//	err := database.RMS.Get(&user, SQL, refreshToken, userID)
-//	if err != nil {
-//		return false
-//	}
-//	return true
-//}
-
-func UpdateRefreshToken(db sqlx.Ext, userID, oldToken, newToken string) error {
-	query := `UPDATE user_session 
-	          SET refresh_token = $1, created_at = NOW()
-	          WHERE user_id = $2 AND refresh_token = $3 AND archived_at IS NULL`
-	_, err := db.Exec(query, newToken, userID, oldToken)
-	return err
-}
-
-func Logout(userID string, refreshToken string) error {
-	SQL := `UPDATE user_session SET archived_at=now() WHERE user_id=$1 AND refresh_token=$2`
-	result, err := database.RMS.Exec(SQL, userID, refreshToken)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return errors.New("no session found to delete")
-	}
-
-	return nil
-}
-
 func CalculateDistance(addressID string, restaurantID string) (models.Distance, error) {
 	var body models.Distance
 	SQL := `SELECT user_address.latitude , user_address.longitude FROM user_address 
@@ -231,7 +167,7 @@ func CalculateDistance(addressID string, restaurantID string) (models.Distance, 
 func GetAllSubadmin(userID string, limit, page int) ([]models.SubadminResponse, error) {
 	var subAdmin = make([]models.SubadminResponse, 0)
 	var roleID string
-	SQL := `SELECT id FROM role WHERE role_type='sub-admin'`
+	SQL := `SELECT id FROM role WHERE role_type='subadmin'`
 	err := database.RMS.Get(&roleID, SQL)
 	if err != nil {
 		return subAdmin, err
@@ -240,6 +176,23 @@ func GetAllSubadmin(userID string, limit, page int) ([]models.SubadminResponse, 
              WHERE user_role.role_id=$1 AND users.created_by=$2 AND users.archived_at IS NULL ORDER BY users.name LIMIT $3 OFFSET $4`
 	err = database.RMS.Select(&subAdmin, SQL, roleID, userID, limit, page)
 	return subAdmin, err
+}
+
+func GetRoleByUserID(userID string) ([]string, error) {
+	var roleID []string
+	var roleType []string
+	SQL := `SELECT role_id FROM user_role WHERE user_id=$1`
+	err := database.RMS.Select(&roleID, SQL, userID)
+	if err != nil {
+		return []string{}, err
+	}
+	SQL = `SELECT role_type FROM role WHERE id=ANY($1)`
+	err = database.RMS.Select(&roleType, SQL, pq.Array(roleID))
+	if err != nil {
+		return []string{}, err
+	}
+
+	return roleType, nil
 }
 
 func GetUsers(userID string, limit, page int) ([]models.UseResponse, error) {

@@ -13,8 +13,8 @@ var JSON = jsoniter.ConfigCompatibleWithStandardLibrary
 var json = JSON
 
 type clientError struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message_to_user"`
+	StatusCode int    `json:"statusCode"`
+	Message    string `json:"message"`
 }
 
 func ResponseError(w http.ResponseWriter, statusCode int, message string) {

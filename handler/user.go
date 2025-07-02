@@ -6,6 +6,7 @@ import (
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
+	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -17,7 +18,7 @@ import (
 var json = utils.JSON
 var jwtSecret = []byte(os.Getenv("SECRET_KEY"))
 
-func Register(w http.ResponseWriter, r *http.Request) {
+func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var body models.RegisterRequest
 	var userID string
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -52,7 +53,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 	body.Password = string(hashedPassword)
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		user, createErr := dbHelper.Register(tx, &body)
+		user, createErr := dbHelper.RegisterUser(tx, &body)
 		userID = user
 		return createErr
 
@@ -189,7 +190,7 @@ func CreateUserBySubadmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
+func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var body models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "failed to Decode json")
@@ -200,12 +201,26 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "invalid credentials")
 		return
 	}
+	if userID == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
 	roleType, roleTypeErr := dbHelper.GetRoleByUserID(userID)
 	if roleTypeErr != nil {
+		fmt.Println(roleTypeErr)
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting role")
 		return
 	}
-
+	isUser := false
+	for _, role := range roleType {
+		if role == "user" {
+			isUser = true
+		}
+	}
+	if !isUser {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
 	accessToken, accessErr := middleware.GenerateAccessToken(userID, roleType)
 	refreshToken, refreshErr := middleware.GenerateRefreshToken(userID)
 	if accessErr != nil || refreshErr != nil {
@@ -213,13 +228,97 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		_, sessErr := dbHelper.CreateSession(tx, userID, refreshToken)
-		return sessErr
-
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message":       "user logged in successfully",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
-	if txErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to create session")
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+	}
+
+}
+func LoginAdmin(w http.ResponseWriter, r *http.Request) {
+	var body models.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "failed to Decode json")
+		return
+	}
+	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
+	if validateErr != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "invalid credentials")
+		return
+	}
+	if userID == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
+	roleType, roleTypeErr := dbHelper.GetRoleByUserID(userID)
+	if roleTypeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while getting role")
+		return
+	}
+	isAdmin := false
+	for _, role := range roleType {
+		if role == "admin" {
+			isAdmin = true
+		}
+	}
+	if !isAdmin {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
+	accessToken, accessErr := middleware.GenerateAccessToken(userID, roleType)
+	refreshToken, refreshErr := middleware.GenerateRefreshToken(userID)
+	if accessErr != nil || refreshErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "could not generate jwt token")
+		return
+	}
+
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+		"message":       "user logged in successfully",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
+	if EncodeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
+	}
+
+}
+func LoginSubadmin(w http.ResponseWriter, r *http.Request) {
+	var body models.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "failed to Decode json")
+		return
+	}
+	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
+	if validateErr != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "invalid credentials")
+		return
+	}
+	if userID == "" {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
+	roleType, roleTypeErr := dbHelper.GetRoleByUserID(userID)
+	if roleTypeErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "error while getting role")
+		return
+	}
+	isSubadmin := false
+	for _, role := range roleType {
+		if role == "subadmin" {
+			isSubadmin = true
+		}
+	}
+	if !isSubadmin {
+		utils.ResponseError(w, http.StatusBadRequest, "user not found")
+		return
+	}
+	accessToken, accessErr := middleware.GenerateAccessToken(userID, roleType)
+	refreshToken, refreshErr := middleware.GenerateRefreshToken(userID)
+	if accessErr != nil || refreshErr != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "could not generate jwt token")
 		return
 	}
 
@@ -253,29 +352,6 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message": "address created successfully",
-	})
-	if EncodeErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
-	}
-}
-
-func Logout(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.RefreshToken == "" {
-		utils.ResponseError(w, http.StatusBadRequest, "invalid request")
-		return
-	}
-
-	userID := middleware.UserContext(r)
-	if err := dbHelper.Logout(userID, body.RefreshToken); err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "logout failed")
-		return
-	}
-
-	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
-		"message": "logout successfully",
 	})
 	if EncodeErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
@@ -343,11 +419,6 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		return jwtSecret, nil
 	})
 	if err != nil || !token.Valid {
-		err := dbHelper.Logout(body.UserID, body.Token)
-		if err != nil {
-			utils.ResponseError(w, http.StatusInternalServerError, "failed to delete the session")
-			return
-		}
 		utils.ResponseError(w, http.StatusUnauthorized, "session expired login again")
 		return
 
@@ -374,15 +445,5 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 	if EncodeErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to send response")
-		return
 	}
-	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		createErr := dbHelper.UpdateRefreshToken(tx, body.UserID, body.Token, refreshToken)
-		return createErr
-
-	})
-	if txErr != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to update the refresh token")
-	}
-
 }
