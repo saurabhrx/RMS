@@ -32,17 +32,17 @@ func CreateRestaurant(body *models.RestaurantRequest) (string, error) {
 	return restID, nil
 
 }
-func GetAllRestaurants() ([]models.RestaurantResponse, error) {
+func GetAllRestaurants(limit, page int) ([]models.RestaurantResponse, error) {
 	query := `SELECT id , name  , contact , latitude , longitude , opening_time,closing_time,created_by 
-              FROM restaurant WHERE archived_at IS NULL`
-	var restaurants []models.RestaurantResponse
-	err := database.RMS.Select(&restaurants, query)
+              FROM restaurant WHERE archived_at IS NULL ORDER BY name LIMIT $1 OFFSET $2`
+	var restaurants = make([]models.RestaurantResponse, 0)
+	err := database.RMS.Select(&restaurants, query, limit, page)
 	return restaurants, err
 }
-func GetRestaurantByUerID(userID string) ([]models.RestaurantResponse, error) {
+func GetRestaurantByUserID(userID string, limit, page int) ([]models.RestaurantResponse, error) {
 	query := `SELECT id , name  , contact , latitude , longitude , opening_time,closing_time,created_by 
-              FROM restaurant where created_by=$1 AND archived_at IS NULL`
-	var restaurants []models.RestaurantResponse
-	err := database.RMS.Select(&restaurants, query, userID)
+              FROM restaurant where created_by=$1 AND archived_at IS NULL ORDER BY name LIMIT $1 OFFSET $2`
+	var restaurants = make([]models.RestaurantResponse, 0)
+	err := database.RMS.Select(&restaurants, query, userID, limit, page)
 	return restaurants, err
 }

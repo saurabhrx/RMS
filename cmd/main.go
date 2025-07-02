@@ -34,7 +34,7 @@ func main() {
 		logrus.Panicf("failed to connect to server %+v", srvErr)
 		return
 	}
-
+	fmt.Println("server is running on port :")
 	if DBCloseErr := database.CloseDBConnection(); DBCloseErr != nil {
 		logrus.Panicf("failed to close database %+v", DBCloseErr)
 		return

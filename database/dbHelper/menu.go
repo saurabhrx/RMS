@@ -28,21 +28,20 @@ func IsDishExists(name string, restaurantId string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-
 }
 
-func GetDishesByRestaurant(restaurantId string) ([]models.MenuResponse, error) {
+func GetDishesByRestaurant(restaurantId string, limit, page int) ([]models.MenuResponse, error) {
 	query := `SELECT menu.name, menu.price FROM menu join restaurant on restaurant.id = menu.restaurant_id 
-              WHERE restaurant.id=$1 AND restaurant.archived_at IS NULL `
-	var dishes []models.MenuResponse
-	err := database.RMS.Select(&dishes, query, restaurantId)
+              WHERE restaurant.id=$1 AND restaurant.archived_at IS NULL ORDER BY menu.name LIMIT $2 OFFSET $3`
+	var dishes = make([]models.MenuResponse, 0)
+	err := database.RMS.Select(&dishes, query, restaurantId, limit, page)
 	return dishes, err
-
 }
-func GetDishesByUserID(userID string) ([]models.MenuResponse, error) {
-	query := `SELECT menu.name, menu.price  FROM menu WHERE created_by=$1 AND archived_at IS NULL`
-	var dishes []models.MenuResponse
-	err := database.RMS.Select(&dishes, query, userID)
-	return dishes, err
 
+func GetDishesByUserID(userID string, limit, page int) ([]models.MenuResponse, error) {
+	query := `SELECT menu.name, menu.price  FROM menu WHERE created_by=$1 AND archived_at IS NULL 
+              ORDER BY menu.name LIMIT $2 OFFSET $3`
+	var dishes = make([]models.MenuResponse, 0)
+	err := database.RMS.Select(&dishes, query, userID, limit, page)
+	return dishes, err
 }
