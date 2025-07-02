@@ -5,9 +5,9 @@ type RestaurantRequest struct {
 	Contact     string  `json:"contact" db:"contact"`
 	Longitude   float64 `json:"longitude" db:"longitude"`
 	Latitude    float64 `json:"latitude" db:"latitude"`
-	OpeningTime string  `json:"opening_time" db:"opening_time"`
-	ClosingTime string  `json:"closing_time" db:"closing_time"`
-	CreatedBy   string  `json:"created_by" db:"created_by"`
+	OpeningTime *string `json:"openingTime" db:"opening_time"`
+	ClosingTime *string `json:"closingTime" db:"closing_time"`
+	CreatedBy   string  `json:"createdBy" db:"created_by"`
 }
 
 type RestaurantResponse struct {
@@ -16,7 +16,7 @@ type RestaurantResponse struct {
 	Contact     string  `json:"contact" db:"contact"`
 	Latitude    float64 `json:"latitude" db:"latitude"`
 	Longitude   float64 `json:"longitude" db:"longitude"`
-	OpeningTime *string `json:"opening_time" db:"opening_time"`
-	ClosingTime *string `json:"closing_time" db:"closing_time"`
-	CreatedBy   string  `json:"created_by" db:"created_by"`
+	OpeningTime *string `json:"openingTime" db:"opening_time"`
+	ClosingTime *string `json:"closingTime" db:"closing_time"`
+	CreatedBy   string  `json:"createdBy" db:"created_by"`
 }

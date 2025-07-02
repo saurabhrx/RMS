@@ -5,22 +5,20 @@ import (
 	"RMS/models"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func IsUserExists(email string) (bool, error) {
-	query := `SELECT id FROM users WHERE email=$1 AND archived_at IS NULL `
-	var id string
-	err := database.RMS.Get(&id, query, email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	query := `SELECT count(*)>0 FROM users WHERE email=$1 AND archived_at IS NULL `
+	var exists bool
+	err := database.RMS.Get(&exists, query, email)
+	if err != nil {
 		return false, err
 	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	return true, nil
+	return exists, nil
 }
 
 func Register(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
@@ -65,7 +63,7 @@ func CreateUserByAdmin(db sqlx.Ext, body *models.CreateUserRequest) (string, err
 		userID string
 		err    error
 	)
-
+	fmt.Println(body)
 	if len(body.Role) == 0 {
 		body.Role = []string{"user"}
 	}
@@ -89,7 +87,7 @@ func CreateUserByAdmin(db sqlx.Ext, body *models.CreateUserRequest) (string, err
 			return "", err
 		}
 	}
-
+	fmt.Println(userID)
 	return userID, nil
 }
 
@@ -230,8 +228,8 @@ func CalculateDistance(addressID string, restaurantID string) (models.Distance, 
 
 }
 
-func GetAllSubadmin(userID string) ([]models.SubadminResponse, error) {
-	var subAdmin []models.SubadminResponse
+func GetAllSubadmin(userID string, limit, page int) ([]models.SubadminResponse, error) {
+	var subAdmin = make([]models.SubadminResponse, 0)
 	var roleID string
 	SQL := `SELECT id FROM role WHERE role_type='sub-admin'`
 	err := database.RMS.Get(&roleID, SQL)
@@ -239,17 +237,18 @@ func GetAllSubadmin(userID string) ([]models.SubadminResponse, error) {
 		return subAdmin, err
 	}
 	SQL = `SELECT DISTINCT users.id , users.name FROM users JOIN user_role ON users.id = user_role.user_id 
-             WHERE user_role.role_id=$1 AND users.created_by=$2 AND users.archived_at IS NULL`
-	err = database.RMS.Select(&subAdmin, SQL, roleID, userID)
+             WHERE user_role.role_id=$1 AND users.created_by=$2 AND users.archived_at IS NULL ORDER BY users.name LIMIT $3 OFFSET $4`
+	err = database.RMS.Select(&subAdmin, SQL, roleID, userID, limit, page)
 	return subAdmin, err
 }
 
-func GetUsers(userID string) ([]models.UseResponse, error) {
-	var users []models.UseResponse
+func GetUsers(userID string, limit, page int) ([]models.UseResponse, error) {
+	var users = make([]models.UseResponse, 0)
 	SQL := `SELECT DISTINCT users.id , users.name , role.role_type FROM users 
             JOIN user_role ON users.id = user_role.user_id
-            JOIN role ON role.id = user_role.role_id where created_by=$1 AND users.archived_at IS NULL `
-	err := database.RMS.Select(&users, SQL, userID)
+            JOIN role ON role.id = user_role.role_id where created_by=$1 AND users.archived_at IS NULL 
+            ORDER BY users.name LIMIT $2 OFFSET $3`
+	err := database.RMS.Select(&users, SQL, userID, limit, page)
 	return users, err
 
 }

@@ -17,18 +17,18 @@ type CreateUserRequest struct {
 	Email     string   `json:"email" db:"email"`
 	Password  string   `json:"password" db:"password"`
 	Role      []string `json:"role" db:"role"`
-	CreatedBy string   `json:"created_by" db:"created_by"`
+	CreatedBy string   `json:"createdBy" db:"created_by"`
 }
 type CreateUserRequestBySubadmin struct {
 	Name      string `json:"name" db:"name"`
 	Email     string `json:"email" db:"email"`
 	Password  string `json:"password" db:"password"`
 	Role      string `json:"role" db:"role"`
-	CreatedBy string `json:"created_by" db:"created_by"`
+	CreatedBy string `json:"createdBy" db:"created_by"`
 }
 
 type UserAddress struct {
-	UserID  string     `json:"user_id" db:"user_id"`
+	UserID  string     `json:"userID" db:"user_id"`
 	Address []Location `json:"address" db:"address"`
 }
 type Location struct {
@@ -42,15 +42,15 @@ type LoginRequest struct {
 }
 
 type Distance struct {
-	UserLat        float64 `json:"user_lat" db:"user_lat"`
-	UserLong       float64 `json:"user_long" db:"user_long"`
-	RestaurantLat  float64 `json:"restaurant_lat" db:"restaurant_lat"`
-	RestaurantLong float64 `json:"restaurant_long" db:"restaurant_long"`
+	UserLat        float64 `json:"userLatitude" db:"user_latitude"`
+	UserLong       float64 `json:"userLongitude" db:"user_longitude"`
+	RestaurantLat  float64 `json:"restaurantLatitude" db:"restaurant_latitude"`
+	RestaurantLong float64 `json:"restaurantLongitude" db:"restaurant_longitude"`
 }
 
 type DistanceRequest struct {
-	UserID       string `json:"user_id" db:"user_id"`
-	RestaurantID string `json:"restaurant_id" db:"restaurant_id"`
+	UserID       string `json:"userID" db:"user_id"`
+	RestaurantID string `json:"restaurantID" db:"restaurant_id"`
 }
 
 type SubadminResponse struct {
@@ -64,6 +64,6 @@ type UseResponse struct {
 }
 
 type RefreshToken struct {
-	UserID string `json:"user_id"`
-	Token  string `json:"refresh_token"`
+	UserID string `json:"userID" db:"user_id"`
+	Token  string `json:"refreshToken" db:"refresh_token"`
 }

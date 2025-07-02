@@ -6,6 +6,7 @@ import (
 	"RMS/models"
 	"RMS/utils"
 	"net/http"
+	"strconv"
 )
 
 func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +44,16 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
-	restaurants, err := dbHelper.GetAllRestaurants()
+	queryParams := r.URL.Query()
+	page, limitErr := strconv.Atoi(queryParams.Get("page"))
+	if limitErr != nil {
+		return
+	}
+	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
+	if offsetErr != nil {
+		return
+	}
+	restaurants, err := dbHelper.GetAllRestaurants(limit, page-1)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
 		return
@@ -54,9 +64,18 @@ func GetAllRestaurant(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetRestaurantByUerID(w http.ResponseWriter, r *http.Request) {
+func GetRestaurantByUserID(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	page, limitErr := strconv.Atoi(queryParams.Get("page"))
+	if limitErr != nil {
+		return
+	}
+	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
+	if offsetErr != nil {
+		return
+	}
 	userID := middleware.UserContext(r)
-	restaurants, err := dbHelper.GetRestaurantByUerID(userID)
+	restaurants, err := dbHelper.GetRestaurantByUserID(userID, limit, page-1)
 	if err != nil && restaurants != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "error while getting restaurants")
 		return

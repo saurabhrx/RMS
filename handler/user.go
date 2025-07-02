@@ -6,12 +6,14 @@ import (
 	"RMS/middleware"
 	"RMS/models"
 	"RMS/utils"
+	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 var json = utils.JSON
@@ -37,7 +39,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusConflict, "user already exists")
 		return
 	}
-	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	if hashErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to hash password")
 		return
@@ -98,6 +100,7 @@ func CreateUserByAdmin(w http.ResponseWriter, r *http.Request) {
 	})
 	if txErr != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to create new user")
+		fmt.Println(txErr)
 		return
 	}
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
@@ -273,8 +276,17 @@ func CalculateDistance(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	page, limitErr := strconv.Atoi(queryParams.Get("page"))
+	if limitErr != nil {
+		return
+	}
+	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
+	if offsetErr != nil {
+		return
+	}
 	userID := middleware.UserContext(r)
-	subAdmin, err := dbHelper.GetAllSubadmin(userID)
+	subAdmin, err := dbHelper.GetAllSubadmin(userID, limit, page-1)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to get subadmin")
 		return
@@ -287,8 +299,17 @@ func GetAllSubadmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	page, limitErr := strconv.Atoi(queryParams.Get("page"))
+	if limitErr != nil {
+		return
+	}
+	limit, offsetErr := strconv.Atoi(queryParams.Get("limit"))
+	if offsetErr != nil {
+		return
+	}
 	userID := middleware.UserContext(r)
-	users, err := dbHelper.GetUsers(userID)
+	users, err := dbHelper.GetUsers(userID, limit, page-1)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to get users")
 		return
