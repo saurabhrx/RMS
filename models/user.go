@@ -2,7 +2,7 @@ package models
 
 const (
 	RoleAdmin    = "admin"
-	RoleSubadmin = "sub-admin"
+	RoleSubadmin = "subadmin"
 	RoleUser     = "user"
 )
 
