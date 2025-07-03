@@ -3,8 +3,6 @@ package dbHelper
 import (
 	"RMS/database"
 	"RMS/models"
-	"database/sql"
-	"errors"
 )
 
 func CreateDish(body *models.MenuRequest) (string, error) {
@@ -18,16 +16,13 @@ func CreateDish(body *models.MenuRequest) (string, error) {
 }
 
 func IsDishExists(name string, restaurantId string) (bool, error) {
-	query := `SELECT id FROM menu WHERE name=$1 AND restaurant_id=$2 AND archived_at IS NULL`
-	var id string
-	err := database.RMS.Get(&id, query, name, restaurantId)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	query := `SELECT count(*)>0 FROM menu WHERE name=$1 AND restaurant_id=$2 AND archived_at IS NULL `
+	var exists bool
+	err := database.RMS.Get(&exists, query, name, restaurantId)
+	if err != nil {
 		return false, err
 	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	return true, nil
+	return exists, nil
 }
 
 func GetDishesByRestaurant(restaurantId string, limit, page int) ([]models.MenuResponse, error) {

@@ -47,7 +47,7 @@ func RegisterUser(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 	}
 
 	for _, address := range body.Address {
-		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1, $2,$3)`
+		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1,$2,$3)`
 		_, err = db.Exec(addressQuery, userID, address.Latitude, address.Longitude)
 		if err != nil {
 			return "", err
