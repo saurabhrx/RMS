@@ -3,21 +3,16 @@ package dbHelper
 import (
 	"RMS/database"
 	"RMS/models"
-	"database/sql"
-	"errors"
 )
 
 func IsRestaurantExists(name string, lat, long float64) (bool, error) {
-	query := `SELECT id FROM restaurant WHERE name=$1 AND latitude=$2 AND longitude=$3 AND archived_at IS NULL `
-	var id string
-	err := database.RMS.Get(&id, query, name, lat, long)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	query := `SELECT count(*)>0 FROM restaurant WHERE name=$1 AND latitude=$2 AND longitude=$3 AND archived_at IS NULL `
+	var exists bool
+	err := database.RMS.Get(&exists, query, name, lat, long)
+	if err != nil {
 		return false, err
 	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	return true, nil
+	return exists, nil
 
 }
 
