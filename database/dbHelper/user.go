@@ -46,12 +46,16 @@ func RegisterUser(db sqlx.Ext, body *models.RegisterRequest) (string, error) {
 		return "", err
 	}
 
+	stmt := `INSERT INTO user_address(user_id, latitude, longitude) VALUES %s`
+	bindVar := "(?,?,?)"
+	addressQuery := database.SetUpBindVars(stmt, bindVar, len(body.Address))
+	args := make([]interface{}, 0, len(body.Address)*3)
 	for _, address := range body.Address {
-		addressQuery := `INSERT INTO user_address(user_id, latitude,longitude) VALUES ($1,$2,$3)`
-		_, err = db.Exec(addressQuery, userID, address.Latitude, address.Longitude)
-		if err != nil {
-			return "", err
-		}
+		args = append(args, userID, address.Latitude, address.Longitude)
+	}
+	_, err = db.Exec(addressQuery, args...)
+	if err != nil {
+		return "", err
 	}
 	return userID, nil
 }
@@ -137,13 +141,18 @@ func ValidateUser(email, password string) (string, error) {
 	return userId, nil
 }
 func CreateAddress(db sqlx.Ext, body *models.UserAddress) error {
+	stmt := `INSERT INTO user_address(user_id, latitude, longitude) VALUES %s`
+	bindVar := "(?,?,?)"
+	addressQuery := database.SetUpBindVars(stmt, bindVar, len(body.Address))
+	args := make([]interface{}, 0, len(body.Address)*3)
 	for _, address := range body.Address {
-		SQL := `INSERT INTO user_address(user_id,latitude,longitude) VALUES ($1,$2,$3)`
-		_, err := db.Exec(SQL, body.UserID, address.Latitude, address.Longitude)
-		if err != nil {
-			return err
-		}
+		args = append(args, body.UserID, address.Latitude, address.Longitude)
 	}
+	_, err := db.Exec(addressQuery, args...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

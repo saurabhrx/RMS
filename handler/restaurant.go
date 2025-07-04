@@ -24,11 +24,11 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "please provide contact")
 		return
 	}
-	if body.Latitude > -90 && body.Longitude < 90 {
+	if body.Latitude < -90 && body.Longitude > 90 {
 		utils.ResponseError(w, http.StatusBadRequest, "latitude must be between -90 and 90 degree")
 		return
 	}
-	if body.Latitude > -180 && body.Longitude < 180 {
+	if body.Latitude < -180 && body.Longitude > 180 {
 		utils.ResponseError(w, http.StatusBadRequest, "latitude must be between -90 and 90 degree")
 		return
 	}
